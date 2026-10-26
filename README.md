@@ -2,12 +2,12 @@
 
 Fichiers communs à [cash-ctrl](https://github.com/jerem-gt/cash-ctrl) et [shelf-ctrl](https://github.com/jerem-gt/shelf-ctrl) : même stack (monorepo npm `client` / `server` / `shared`, Express + SQLite, image Docker Alpine sur ghcr.io mise à jour par Watchtower). Un changement fait ici profite aux deux projets, sans copie à maintenir.
 
-| Fichier | Rôle | Utilisé par le projet via |
-|---|---|---|
-| `.github/workflows/app.yml` | Workflow réutilisable : lint, types, tests, SonarCloud, semantic-release, image Docker allégée + smoke test, ménage des tags et images de dev | `uses:` dans `.github/workflows/ci.yml` |
-| `bin/prepare-runtime-deps.mjs` | Extrait dans `deploy/node_modules` les seules deps runtime du serveur bundlé (binaires linux/x64/musl) | devDependency `@jerem-gt/ctrl-shared` (le workflow lance `npx prepare-runtime-deps`) |
-| `docker/Dockerfile` | Image finale (Node Alpine, fuseau Europe/Paris seul, `deploy/node_modules` + dists) | idem, copié dans `deploy/` par le workflow |
-| `default.json` | Preset Renovate | `"extends": ["github>jerem-gt/ctrl-shared"]` |
+| Fichier                        | Rôle                                                                                                                                          | Utilisé par le projet via                                                            |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `.github/workflows/app.yml`    | Workflow réutilisable : lint, types, tests, SonarCloud, semantic-release, image Docker allégée + smoke test, ménage des tags et images de dev | `uses:` dans `.github/workflows/ci.yml`                                              |
+| `bin/prepare-runtime-deps.mjs` | Extrait dans `deploy/node_modules` les seules deps runtime du serveur bundlé (binaires linux/x64/musl)                                        | devDependency `@jerem-gt/ctrl-shared` (le workflow lance `npx prepare-runtime-deps`) |
+| `docker/Dockerfile`            | Image finale (Node Alpine, fuseau Europe/Paris seul, `deploy/node_modules` + dists)                                                           | idem, copié dans `deploy/` par le workflow                                           |
+| `default.json`                 | Preset Renovate                                                                                                                               | `"extends": ["github>jerem-gt/ctrl-shared"]`                                         |
 
 ## Utilisation dans un projet
 
