@@ -63,4 +63,6 @@ Pas de CI ici : un changement se teste depuis un projet en pointant le workflow 
 git tag v1.1.0 && git push origin v1.1.0
 ```
 
-Renovate propose ensuite la montée dans chaque projet (référence du workflow et devDependency, à garder sur le même tag).
+Renovate propose ensuite la montée dans chaque projet (référence du workflow et devDependency, groupées dans une seule PR, toujours sur le même tag).
+
+Seuls le workflow, `bin/` et `docker/` demandent un tag. Le preset `default.json` est lu par Renovate sur `main`, sans tag : une modification s'applique aux deux projets dès qu'elle est poussée.
