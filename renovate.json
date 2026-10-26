@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["local>jerem-gt/ctrl-shared"],
+  "packageRules": [
+    {
+      "description": "Pas de CI ici : chaque montée est relue puis testée depuis un projet avant le tag",
+      "matchPackageNames": ["*"],
+      "automerge": false
+    }
+  ]
+}

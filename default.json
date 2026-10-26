@@ -1,0 +1,58 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Preset commun à cash-ctrl et shelf-ctrl : \"extends\": [\"github>jerem-gt/ctrl-shared\"]",
+  "extends": [
+    "config:recommended",
+    "group:allNonMajor",
+    "group:react",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "semanticCommits": "enabled",
+  "rangeStrategy": "bump",
+  "timezone": "Europe/Paris",
+  "labels": [
+    "dependencies"
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": [
+      "on monday"
+    ],
+    "automerge": true
+  },
+  "packageRules": [
+    {
+      "description": "Mineures/patchs automergées une fois la CI verte (check requis sur develop)",
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "digest"
+      ],
+      "automerge": true
+    },
+    {
+      "description": "Dockerfile, workflow (container) et engines montent de version Node ensemble",
+      "matchPackageNames": [
+        "node"
+      ],
+      "matchDatasources": [
+        "docker",
+        "node-version"
+      ],
+      "groupName": "node",
+      "addLabels": [
+        "node"
+      ],
+      "prBodyNotes": [
+        "Si majeure : aligner aussi `@types/node` dans chaque projet et la règle `allowedVersions` de ce preset."
+      ]
+    },
+    {
+      "matchPackageNames": [
+        "@types/node"
+      ],
+      "allowedVersions": "<25"
+    }
+  ]
+}

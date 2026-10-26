@@ -1,0 +1,308 @@
+name: App CI
+
+# Workflow réutilisable : CI, SonarCloud, release, image Docker allégée et ménage.
+# Appel depuis un projet (voir README) : uses: jerem-gt/ctrl-shared/.github/workflows/app.yml@<tag>
+on:
+  workflow_call:
+    secrets:
+      SONAR_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  ci:
+    name: 🧪 CI & Tests
+    runs-on: ubuntu-latest
+    container: node:24.22.1-alpine
+    timeout-minutes: 15
+    steps:
+      - name: Install system deps
+        run: apk add --no-cache git g++ make python3 tar
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # Remplacement de actions/setup-node par actions/cache
+      - name: Cache npm dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Install deps
+        run: npm ci --ignore-scripts
+
+      # Le checkout réécrit les mtimes → cache-strategy content obligatoire côté ESLint
+      - name: Cache ESLint
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: .eslintcache
+          key: eslint-${{ hashFiles('package-lock.json', 'eslint.config.js') }}-${{ github.sha }}
+          restore-keys: |
+            eslint-${{ hashFiles('package-lock.json', 'eslint.config.js') }}-
+
+      - name: Lint, types des tests & Tests (parallèle)
+        run: |
+          npm run lint -- --cache --cache-location .eslintcache --cache-strategy content &
+          LINT=$!
+          npm run typecheck:test --workspace=client &
+          TYPES=$!
+          npm run typecheck --workspace=server &
+          SERVER_TYPES=$!
+          npm run test:coverage --workspace=server &
+          SERVER=$!
+          npm run test:coverage --workspace=client &
+          CLIENT=$!
+          FAIL=0
+          wait $LINT || FAIL=1
+          wait $TYPES || FAIL=1
+          wait $SERVER_TYPES || FAIL=1
+          wait $SERVER || FAIL=1
+          wait $CLIENT || FAIL=1
+          exit $FAIL
+
+      - name: Build
+        run: |
+          npm run build --workspace=server
+          npm run build --workspace=client
+
+      # Extrait les seules deps runtime (natifs musl/x64) dans deploy/node_modules, avec le Dockerfile
+      # commun, tous deux fournis par la devDependency @jerem-gt/ctrl-shared du projet
+      - name: Prepare runtime deps
+        if: github.event_name == 'push'
+        run: |
+          npx --no-install prepare-runtime-deps
+          cp node_modules/@jerem-gt/ctrl-shared/docker/Dockerfile deploy/Dockerfile
+
+      # Artifact léger pour Sonar : uniquement les rapports de coverage
+      - name: Upload coverage
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: sonar-assets
+          path: |
+            server/coverage/lcov.info
+            client/coverage/lcov.info
+
+      # Artifact lourd pour le build Docker (jamais construit sur PR)
+      - name: Upload artifacts
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: build-assets
+          path: |
+            deploy
+            server/dist
+            client/dist
+
+  sonar:
+    name: 🛡️ SonarCloud Analysis
+    needs: [ci]
+    # Le plan SonarCloud ne couvre que la branche main + les PR : pas d'analyse sur push develop.
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Download coverage
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: sonar-assets
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+
+  release:
+    name: 🚀 Semantic Release
+    needs: [ci]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
+      new_release_version: ${{ steps.semantic.outputs.new_release_version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - name: Semantic Release
+        id: semantic
+        uses: cycjimmy/semantic-release-action@d9bf53a078bd2f86aaffaec796dbb3d28f1b6f34 # v8.1.3
+        with:
+          branches: |
+            [
+              "main",
+              { "name": "develop", "prerelease": "dev" }
+            ]
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-and-push:
+    name: 📦 Docker Build & Push
+    needs: [ci, release]
+    # Uniquement si une nouvelle release a été publiée (release ne tourne que sur push)
+    if: needs.release.outputs.new_release_published == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Download build assets
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: build-assets
+
+      - name: Log in to GHCR
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # Tag précis (ex: 1.1.0 ou 1.2.0-dev.1)
+            type=semver,pattern={{version}},value=${{ needs.release.outputs.new_release_version }}
+            # Le tag 'latest' ne bouge que lors d'un push sur main
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            # Un tag 'dev' pratique pour pull la dernière version de develop
+            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=sha,prefix=sha-
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+
+      # Icône Dozzle : data URI encodée depuis le favicon, pour éviter de dupliquer le SVG
+      - name: Compute Dozzle icon
+        id: dozzle_icon
+        run: echo "value=data:image/svg+xml;base64,$(base64 -w0 client/public/favicon.svg)" >> "$GITHUB_OUTPUT"
+
+      # Build local pour le smoke test ; le build de push réutilise le cache du builder
+      - name: Build image (smoke test)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          file: deploy/Dockerfile
+          load: true
+          push: false
+          tags: ${{ github.event.repository.name }}:smoke
+          provenance: false
+          build-args: |
+            APP_VERSION=${{ needs.release.outputs.new_release_version || 'dev' }}
+            DOZZLE_ICON=${{ steps.dozzle_icon.outputs.value }}
+          cache-from: type=gha
+
+      # Démarre l'image et exerce santé, front et docs avant le push. Le projet fournit les variables
+      # du conteneur (.github/smoke.env) et ses propres contrôles (.github/smoke-test.sh, dont le login).
+      - name: Smoke test image
+        env:
+          IMAGE: ${{ github.event.repository.name }}:smoke
+        run: |
+          set -- -d --name smoke -p 3000:3000
+          if [ -f .github/smoke.env ]; then set -- "$@" --env-file .github/smoke.env; fi
+          docker run "$@" "$IMAGE"
+          fail() { echo "Smoke test KO : $1"; docker logs smoke; exit 1; }
+          for _ in $(seq 1 30); do
+            curl -fsS http://localhost:3000/api/health && break
+            sleep 1
+          done
+          curl -fsS http://localhost:3000/api/health > /dev/null || fail "/api/health"
+          curl -fsS -o /dev/null http://localhost:3000/ || fail "/"
+          curl -fsS -o /dev/null http://localhost:3000/api/docs/ || fail "/api/docs/"
+          if [ -f .github/smoke-test.sh ]; then
+            sh .github/smoke-test.sh http://localhost:3000 smoke || fail ".github/smoke-test.sh"
+          fi
+          docker rm -f smoke
+
+      - name: Build and push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          file: deploy/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Pas d'attestation de provenance : sinon l'image devient un index dont les manifests enfants
+          # n'ont pas de tag, et le job de nettoyage les supprime (le tag pointe alors vers rien).
+          provenance: false
+          build-args: |
+            APP_VERSION=${{ needs.release.outputs.new_release_version || 'dev' }}
+            DOZZLE_ICON=${{ steps.dozzle_icon.outputs.value }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  prune-git-tags:
+    name: 🧹 Prune Older Dev Tags
+    needs: [release]
+    # On ne lance le ménage que si une nouvelle version stable est publiée sur main
+    if: needs.release.outputs.new_release_published == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0 # Important pour récupérer tous les tags
+
+      - name: Delete inferior dev tags
+        run: |
+          # On s'assure d'avoir la version sans le 'v' pour la comparaison
+          CURRENT_VERSION=$(echo "${{ needs.release.outputs.new_release_version }}" | sed 's/^v//')
+          echo "Comparing against stable version: $CURRENT_VERSION"
+
+          # On liste tous les tags de dev
+          for tag in $(git tag -l "*dev*"); do
+            # On extrait la version de base et on enlève le 'v' initial pour comparer des chiffres
+            # v1.3.0-dev.1 -> 1.3.0
+            TAG_BASE=$(echo $tag | sed 's/^v//' | cut -d'-' -f1)
+
+            # Si TAG_BASE est inférieur ou égal à CURRENT_VERSION
+            if [ "$(printf '%s\n%s' "$TAG_BASE" "$CURRENT_VERSION" | sort -V | head -n1)" == "$TAG_BASE" ]; then
+              echo "Cleaning up: $tag (Base: $TAG_BASE <= $CURRENT_VERSION)"
+              git push origin --delete "$tag" || echo "Could not delete $tag"
+            else
+              echo "Keeping: $tag (Base: $TAG_BASE is newer than $CURRENT_VERSION)"
+            fi
+          done
+
+  prune-images:
+    name: 🧹 Prune Dev Images
+    needs: [build-and-push]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      packages: write
+    steps:
+      - name: Delete old dev images
+        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5
+        with:
+          package-name: ${{ github.event.repository.name }}
+          package-type: 'container'
+          min-versions-to-keep: 5 # On garde les 5 dernières versions de dev
+          delete-only-pre-release-versions: true # On ne touche pas aux versions stables !
+          ignore-versions: '^(latest)$'

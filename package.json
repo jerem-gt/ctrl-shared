@@ -1,0 +1,19 @@
+{
+  "name": "@jerem-gt/ctrl-shared",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fichiers communs à cash-ctrl et shelf-ctrl (deps runtime, Dockerfile), installés depuis Git.",
+  "type": "module",
+  "license": "UNLICENSED",
+  "repository": "github:jerem-gt/ctrl-shared",
+  "bin": {
+    "prepare-runtime-deps": "bin/prepare-runtime-deps.mjs"
+  },
+  "files": [
+    "bin",
+    "docker"
+  ],
+  "engines": {
+    "node": ">=24.22.1"
+  }
+}
