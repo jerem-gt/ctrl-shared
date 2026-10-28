@@ -34,7 +34,7 @@
     },
     {
       "matchPackageNames": ["@types/node"],
-      "allowedVersions": "<25"
+      "allowedVersions": "<27"
     },
     {
       "description": "Workflow et devDependency ctrl-shared montent toujours ensemble (même tag)",
