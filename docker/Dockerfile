@@ -1,9 +1,9 @@
 # ---- Stage 1 : récupérer timezone ----
-FROM node:24.22.1-alpine AS tz
+FROM node:26.13.0-alpine AS tz
 RUN apk add --no-cache tzdata
 
 # ---- Stage final ----
-FROM node:24.22.1-alpine
+FROM node:26.13.0-alpine
 
 # Déclarer l'argument de build (reçu de GitHub Actions)
 ARG APP_VERSION=dev
