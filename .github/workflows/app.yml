@@ -298,11 +298,22 @@ jobs:
     permissions:
       packages: write
     steps:
+      # Filtre sur les tags : actions/delete-package-versions ne voit que le digest d'une image
+      # et avait supprimé `latest`. Protégées : latest, dev et versions stables ; on garde 5 dev.
       - name: Delete old dev images
-        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5
-        with:
-          package-name: ${{ github.event.repository.name }}
-          package-type: 'container'
-          min-versions-to-keep: 5 # On garde les 5 dernières versions de dev
-          delete-only-pre-release-versions: true # On ne touche pas aux versions stables !
-          ignore-versions: '^(latest)$'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ github.repository_owner }}
+          PACKAGE: ${{ github.event.repository.name }}
+          KEEP: 5
+        run: |
+          versions="users/$OWNER/packages/container/$PACKAGE/versions"
+          gh api --paginate "$versions" \
+            --jq '.[] | select(.metadata.container.tags | length > 0)
+                  | select(all(.metadata.container.tags[]; test("^(latest|dev|[0-9]+[.][0-9]+[.][0-9]+)$") | not))
+                  | [.created_at, .id, (.metadata.container.tags | join(","))] | @tsv' \
+            | sort -r | tail -n "+$((KEEP + 1))" \
+            | while IFS=$'\t' read -r created id tags; do
+                echo "Suppression de $tags ($created)"
+                gh api -X DELETE "$versions/$id"
+              done
