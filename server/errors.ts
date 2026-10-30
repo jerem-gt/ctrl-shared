@@ -7,14 +7,17 @@ export interface HttpErrorInstance<C extends string> extends Error {
   readonly params?: ErrorParams;
 }
 
-export interface HttpErrorClass<C extends string> {
-  new (status: number, code: C, params?: ErrorParams): HttpErrorInstance<C>;
-}
+export type HttpErrorClass<C extends string> = new (
+  status: number,
+  code: C,
+  params?: ErrorParams,
+) => HttpErrorInstance<C>;
 
 /** Erreur à statut fixe (400, 404, 409). */
-export interface StatusErrorClass<C extends string> {
-  new (code: C, params?: ErrorParams): HttpErrorInstance<C>;
-}
+export type StatusErrorClass<C extends string> = new (
+  code: C,
+  params?: ErrorParams,
+) => HttpErrorInstance<C>;
 
 export interface HttpErrors<C extends string> {
   HttpError: HttpErrorClass<C>;
