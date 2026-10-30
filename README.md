@@ -2,12 +2,13 @@
 
 Fichiers communs à [cash-ctrl](https://github.com/jerem-gt/cash-ctrl) et [shelf-ctrl](https://github.com/jerem-gt/shelf-ctrl) : même stack (monorepo npm `client` / `server` / `shared`, Express + SQLite, image Docker Alpine sur ghcr.io mise à jour par Watchtower). Un changement fait ici profite aux deux projets, sans copie à maintenir.
 
-| Fichier                        | Rôle                                                                                                                                          | Utilisé par le projet via                                                            |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `.github/workflows/app.yml`    | Workflow réutilisable : lint, types, tests, SonarCloud, semantic-release, image Docker allégée + smoke test, ménage des tags et images de dev | `uses:` dans `.github/workflows/ci.yml`                                              |
-| `bin/prepare-runtime-deps.mjs` | Extrait dans `deploy/node_modules` les seules deps runtime du serveur bundlé (binaires linux/x64/musl)                                        | devDependency `@jerem-gt/ctrl-shared` (le workflow lance `npx prepare-runtime-deps`) |
-| `docker/Dockerfile`            | Image finale (Node Alpine, fuseau Europe/Paris seul, `deploy/node_modules` + dists)                                                           | idem, copié dans `deploy/` par le workflow                                           |
-| `default.json`                 | Preset Renovate                                                                                                                               | `"extends": ["github>jerem-gt/ctrl-shared"]`                                         |
+| Fichier                        | Rôle                                                                                                                                                | Utilisé par le projet via                                                            |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `.github/workflows/app.yml`    | Workflow réutilisable : lint, types, tests, SonarCloud, semantic-release, image Docker allégée + smoke test, ménage des tags et images de dev       | `uses:` dans `.github/workflows/ci.yml`                                              |
+| `bin/prepare-runtime-deps.mjs` | Extrait dans `deploy/node_modules` les seules deps runtime du serveur bundlé (binaires linux/x64/musl)                                              | devDependency `@jerem-gt/ctrl-shared` (le workflow lance `npx prepare-runtime-deps`) |
+| `docker/Dockerfile`            | Image finale (Node Alpine, fuseau Europe/Paris seul, `deploy/node_modules` + dists)                                                                 | idem, copié dans `deploy/` par le workflow                                           |
+| `server/*.ts`                  | Code serveur commun en sources TS : mailer SMTP, `sha256Hex`, jeton de premier démarrage, limiteur d'échecs, store de sessions SQLite, erreurs HTTP | devDependency : `import … from '@jerem-gt/ctrl-shared/server/<module>'`              |
+| `default.json`                 | Preset Renovate                                                                                                                                     | `"extends": ["github>jerem-gt/ctrl-shared"]`                                         |
 
 ## Utilisation dans un projet
 
@@ -57,7 +58,7 @@ Les checks GitHub s'appellent `app / 🧪 CI & Tests`, etc. : c'est ce nom qu'at
 
 ## Publier une version
 
-Pas de CI ici : un changement se teste depuis un projet en pointant le workflow **et** la devDependency sur la branche (`@ma-branche`, `#ma-branche`), puis :
+Le code `server/` est vérifié ici (`.github/workflows/check.yml` : `npm run typecheck`, `npm run test:coverage`, Prettier, puis SonarCloud sur les PR et `main`). Le reste se teste depuis un projet en pointant le workflow **et** la devDependency sur la branche (`@ma-branche`, `#ma-branche`), puis :
 
 ```sh
 git tag v1.1.0 && git push origin v1.1.0
@@ -65,4 +66,4 @@ git tag v1.1.0 && git push origin v1.1.0
 
 Renovate propose ensuite la montée dans chaque projet (référence du workflow et devDependency, groupées dans une seule PR, toujours sur le même tag).
 
-Seuls le workflow, `bin/` et `docker/` demandent un tag. Le preset `default.json` est lu par Renovate sur `main`, sans tag : une modification s'applique aux deux projets dès qu'elle est poussée.
+Seuls le workflow, `bin/`, `docker/` et `server/` demandent un tag. Le preset `default.json` est lu par Renovate sur `main`, sans tag : une modification s'applique aux deux projets dès qu'elle est poussée.

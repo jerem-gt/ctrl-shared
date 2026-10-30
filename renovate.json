@@ -3,9 +3,22 @@
   "extends": ["local>jerem-gt/ctrl-shared"],
   "packageRules": [
     {
-      "description": "Pas de CI ici : chaque montée est relue puis testée depuis un projet avant le tag",
+      "description": "Workflow, Dockerfile et script : pas de CI ici, chaque montée est relue puis testée depuis un projet avant le tag",
       "matchPackageNames": ["*"],
       "automerge": false
+    },
+    {
+      "description": "Outils et deps de test de server/ : vérifiés par check.yml, mineures/patchs automergées comme dans les projets",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "automerge": true
+    },
+    {
+      "description": "peerDependencies : plages larges voulues (fournies par les projets), jamais resserrées",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["peerDependencies"],
+      "enabled": false
     }
   ]
 }
