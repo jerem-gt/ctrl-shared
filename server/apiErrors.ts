@@ -136,8 +136,10 @@ function mapZodIssue(issue: z.core.$ZodIssue): ApiErrorField<BaseErrorCode> {
   return { path, code, ...(params ? { params } : {}), message: base.renderMessage(code, params) };
 }
 
-/** Corps d'erreur de validation : code générique + détail par champ. */
-export function zodToApiError(error: z.ZodError): ApiErrorBody<BaseErrorCode> {
+/** Corps d'erreur de validation : code générique + détail par champ (toujours présent). */
+export function zodToApiError(
+  error: z.ZodError,
+): ApiErrorBody<BaseErrorCode> & { fields: ApiErrorField<BaseErrorCode>[] } {
   return {
     code: 'validation.invalid',
     message: base.renderMessage('validation.invalid'),
