@@ -27,21 +27,28 @@
   },
   "peerDependencies": {
     "better-sqlite3": ">=12",
+    "express": "^5.0.0",
     "express-session": "^1.18.0",
-    "nodemailer": ">=7"
+    "nodemailer": ">=7",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
+    "@types/express": "^5.0.6",
     "@types/express-session": "^1.19.0",
     "@types/node": "^26.6.6",
     "@types/nodemailer": "^8.0.2",
+    "@types/supertest": "^7.2.1",
     "@vitest/coverage-v8": "^5.0.5",
     "better-sqlite3": "^13.0.3",
+    "express": "^5.3.0",
     "express-session": "^1.19.0",
     "nodemailer": "^10.3.1",
     "prettier": "^3.9.10",
+    "supertest": "^7.3.1",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "zod": "^4.6.7"
   },
   "engines": {
     "node": ">=26.13.0"
