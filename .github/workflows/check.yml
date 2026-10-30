@@ -1,0 +1,47 @@
+name: Check
+
+# Vérifie le code serveur partagé (server/) : types, tests, format. Le workflow réutilisable
+# app.yml, lui, se teste depuis un projet (voir CLAUDE.md).
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: 🧪 Types, tests & format
+    runs-on: ubuntu-latest
+    container: node:26.13.0-alpine
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Cache npm dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      # better-sqlite3 embarque ses binaires (prebuilds/) : aucun script d'installation nécessaire
+      - name: Install deps
+        run: npm ci --ignore-scripts
+
+      - name: Types
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: Format
+        run: npm run format:check
