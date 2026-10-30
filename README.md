@@ -58,7 +58,7 @@ Les checks GitHub s'appellent `app / 🧪 CI & Tests`, etc. : c'est ce nom qu'at
 
 ## Publier une version
 
-Le code `server/` est vérifié ici (`.github/workflows/check.yml` : `npm run typecheck`, `npm test`, Prettier). Le reste se teste depuis un projet en pointant le workflow **et** la devDependency sur la branche (`@ma-branche`, `#ma-branche`), puis :
+Le code `server/` est vérifié ici (`.github/workflows/check.yml` : `npm run typecheck`, `npm run test:coverage`, Prettier, puis SonarCloud sur les PR et `main`). Le reste se teste depuis un projet en pointant le workflow **et** la devDependency sur la branche (`@ma-branche`, `#ma-branche`), puis :
 
 ```sh
 git tag v1.1.0 && git push origin v1.1.0
