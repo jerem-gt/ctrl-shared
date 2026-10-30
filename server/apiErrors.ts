@@ -51,13 +51,14 @@ export interface JsonResponse {
   status(code: number): { json(body: unknown): unknown };
 }
 
+/** Fonctions sans `this` (fermetures) : elles se déstructurent sans risque. */
 export interface ErrorRegistry<C extends string> {
   /** Message FR d'un code, placeholders `{{param}}` interpolés (laissés tels quels si absents). */
-  renderMessage(code: C, params?: ErrorParams): string;
+  renderMessage: (code: C, params?: ErrorParams) => string;
   /** Corps d'erreur structuré ; `params` seulement s'il y en a. */
-  buildError(code: C, params?: ErrorParams): ApiErrorBody<C>;
+  buildError: (code: C, params?: ErrorParams) => ApiErrorBody<C>;
   /** Répond `{ error: { code, message, params? } }` avec ce statut. */
-  sendError(res: JsonResponse, status: number, code: C, params?: ErrorParams): void;
+  sendError: (res: JsonResponse, status: number, code: C, params?: ErrorParams) => void;
 }
 
 function renderTemplate(template: string, params?: ErrorParams): string {
