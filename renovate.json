@@ -1,6 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["local>jerem-gt/ctrl-shared"],
+  "description": "Une fournée par semaine : la montée groupée des actions publie un tag (patch) que Renovate propose ensuite aux projets",
+  "schedule": ["on monday"],
+  "lockFileMaintenance": {
+    "description": "Le lockfile de ce dépôt ne sert qu'à sa CI : build(deps), sans release",
+    "semanticCommitType": "build"
+  },
   "packageRules": [
     {
       "description": "Par défaut, chaque montée est relue : le Dockerfile (image des projets) et les majeures restent manuels",
@@ -8,16 +14,19 @@
       "automerge": false
     },
     {
-      "description": "Outils et deps de test de server/ : vérifiés par check.yml, mineures/patchs automergées comme dans les projets",
+      "description": "Outils et deps de test de server/ : vérifiés par check.yml, automergés ; jamais installés par les projets, donc build(deps), sans release",
       "matchManagers": ["npm"],
       "matchDepTypes": ["devDependencies"],
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "semanticCommitType": "build",
       "automerge": true
     },
     {
-      "description": "Actions des workflows : mineures/patchs/digests automergés une fois check.yml vert ; app.yml n'atteint les projets qu'au tag, et leur PR de montée de ctrl-shared exécute le workflow",
+      "description": "Actions des workflows : regroupées, automergées une fois check.yml vert ; chore(deps) publie un patch, et la PR de montée de ctrl-shared dans chaque projet exécute app.yml avant sa propre fusion",
       "matchManagers": ["github-actions"],
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "groupName": "actions des workflows",
+      "groupSlug": "github-actions",
       "automerge": true
     },
     {
