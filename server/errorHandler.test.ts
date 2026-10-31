@@ -20,6 +20,12 @@ function setup() {
   app.get('/locked', () => {
     throw new HttpError(429, 'common.forbidden');
   });
+  app.get('/anonymous', () => {
+    throw new HttpError(401, 'common.unauthorized');
+  });
+  app.get('/admin', () => {
+    throw new HttpError(403, 'common.forbidden');
+  });
   app.post('/items', (req) => {
     z.object({ name: z.string() }).parse(req.body);
   });
@@ -44,6 +50,13 @@ describe('createErrorHandler', () => {
     expect(log.warn).toHaveBeenCalledWith('GET /missing 404 — item.not_found');
 
     expect((await request(app).get('/locked')).status).toBe(429);
+  });
+
+  it('ne journalise pas les refus d’accès de routine (401, 403 common.forbidden)', async () => {
+    const { app, log } = setup();
+    expect((await request(app).get('/anonymous')).status).toBe(401);
+    expect((await request(app).get('/admin')).status).toBe(403);
+    expect(log.warn).not.toHaveBeenCalled();
   });
 
   it('détaille une erreur Zod par champ', async () => {

@@ -14,9 +14,20 @@ export interface ErrorHandlerOptions<C extends string> {
   HttpError: HttpErrorClass<C>;
   /** Registre du projet (`createErrorRegistry`). */
   registry: ErrorRegistry<C | BaseErrorCode>;
-  /** 4xx en `warn` (méthode, URL, statut, code), 500 en `error` avec la pile. */
+  /**
+   * 4xx en `warn` (méthode, URL, statut, code), sauf les refus d'accès de routine ; 500 en `error`
+   * avec la pile.
+   */
   log: ErrorHandlerLogger;
 }
+
+/**
+ * Refus d'accès de routine, non journalisés : 401 (session absente ou expirée, identifiants faux :
+ * le module d'auth journalise lui-même les échecs qui comptent) et 403 `common.forbidden` (rôle
+ * admin requis). Sinon chaque visite sans session écrirait une ligne.
+ */
+const isRoutineDenial = (status: number, code: string) =>
+  status === 401 || (status === 403 && code === 'common.forbidden');
 
 /** Erreur 4xx des lecteurs de corps (JSON illisible, corps trop gros…), avec son code. */
 function bodyParserError(err: unknown): { status: number; code: BaseErrorCode } | null {
@@ -48,7 +59,9 @@ export function createErrorHandler<C extends string>(
   return (err: unknown, req, res, _next) => {
     const where = `${req.method} ${req.originalUrl}`;
     if (err instanceof HttpError) {
-      log.warn(`${where} ${err.status} — ${err.code}`);
+      if (!isRoutineDenial(err.status, err.code)) {
+        log.warn(`${where} ${err.status} — ${err.code}`);
+      }
       if (!res.headersSent) registry.sendError(res, err.status, err.code, err.params);
       return;
     }
