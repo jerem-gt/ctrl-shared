@@ -9,6 +9,7 @@ import { createUsersRouter } from './usersRouter.js';
 
 export { AUTH_ERROR_MESSAGES, type AuthErrorCode, type AuthHttpErrorClass } from './errors.js';
 export { actAs, createAuthMiddleware, currentUserId } from './middleware.js';
+export { type AuthOpenApiOptions, createAuthOpenApiPaths } from './openapi.js';
 export type { AuthModuleOptions, AuthRuntimeOptions, UserDeletedHook } from './options.js';
 export * from './schemas.js';
 export type * from './types.js';

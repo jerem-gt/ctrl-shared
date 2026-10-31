@@ -186,7 +186,7 @@ export function createAuthApp(
   app.use(
     createErrorHandler({ HttpError, registry, log: { warn: () => undefined, error: log.error } }),
   );
-  return { db, app, mailer, log, sessionStore };
+  return { db, app, mailer, log, sessionStore, authModule };
 }
 
 export type TestApp = ReturnType<typeof createAuthApp>['app'];
