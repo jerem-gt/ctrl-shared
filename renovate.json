@@ -3,7 +3,7 @@
   "extends": ["local>jerem-gt/ctrl-shared"],
   "packageRules": [
     {
-      "description": "Workflow, Dockerfile et script : pas de CI ici, chaque montée est relue puis testée depuis un projet avant le tag",
+      "description": "Par défaut, chaque montée est relue : le Dockerfile (image des projets) et les majeures restent manuels",
       "matchPackageNames": ["*"],
       "automerge": false
     },
@@ -11,6 +11,12 @@
       "description": "Outils et deps de test de server/ : vérifiés par check.yml, mineures/patchs automergées comme dans les projets",
       "matchManagers": ["npm"],
       "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "automerge": true
+    },
+    {
+      "description": "Actions des workflows : mineures/patchs/digests automergés une fois check.yml vert ; app.yml n'atteint les projets qu'au tag, et leur PR de montée de ctrl-shared exécute le workflow",
+      "matchManagers": ["github-actions"],
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
       "automerge": true
     },
