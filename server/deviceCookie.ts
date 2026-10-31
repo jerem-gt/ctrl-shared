@@ -33,6 +33,12 @@ export function createDeviceCookies(devices: TrustedDevicesRepo, options: Device
     return token ? sha256Hex(token) : undefined;
   };
 
+  /** Appareil (non expiré ou non) désigné par le cookie, `undefined` sans cookie ou s'il est mort. */
+  const deviceOf = (req: Request) => {
+    const hash = currentHash(req);
+    return hash === undefined ? undefined : devices.getByHash(hash);
+  };
+
   const clear = (req: Request, res: Response) => {
     res.clearCookie(name, cookieOptions(req));
   };
@@ -42,10 +48,7 @@ export function createDeviceCookies(devices: TrustedDevicesRepo, options: Device
     clear,
 
     /** Vrai si le cookie de la requête désigne un appareil (non expiré ou non) du compte. */
-    belongsTo: (req: Request, userId: number): boolean => {
-      const hash = currentHash(req);
-      return hash !== undefined && devices.getByHash(hash)?.user_id === userId;
-    },
+    belongsTo: (req: Request, userId: number): boolean => deviceOf(req)?.user_id === userId,
 
     /** Mémorise l'appareil courant ; remplace l'éventuel appareil déjà porté par le cookie. */
     remember: (req: Request, res: Response, userId: number): void => {
@@ -71,13 +74,12 @@ export function createDeviceCookies(devices: TrustedDevicesRepo, options: Device
      * d'un autre compte est conservé (navigateur partagé).
      */
     isTrusted: (req: Request, res: Response, userId: number): boolean => {
-      const hash = currentHash(req);
-      if (!hash) {
+      if (currentHash(req) === undefined) {
         return false;
       }
       const now = Date.now();
       devices.purgeExpired(now);
-      const device = devices.getByHash(hash);
+      const device = deviceOf(req);
       if (device === undefined) {
         clear(req, res);
         return false;

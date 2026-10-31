@@ -1,5 +1,5 @@
 function browserOf(ua: string): string | null {
-  if (/Edg(e|A|iOS)?\//.test(ua)) {
+  if (/Edg(?:e|A|iOS)?\//.test(ua)) {
     return 'Edge';
   }
   if (/OPR\/|Opera/.test(ua)) {

@@ -32,17 +32,21 @@ function setup(secure = false) {
   return { app, devices };
 }
 
-/** Jeton posé par la réponse (en-tête `Set-Cookie`). */
+/** En-tête `Set-Cookie` du cookie d'appareil, `undefined` si la réponse n'en pose pas. */
+function setCookieOf(res: request.Response): string | undefined {
+  return [res.headers['set-cookie'] ?? []].flat().find((c) => c.startsWith(`${NAME}=`));
+}
+
+/** Jeton posé par la réponse. */
 function tokenOf(res: request.Response): string {
-  const header = [res.headers['set-cookie'] ?? []].flat().find((c) => c.startsWith(`${NAME}=`));
-  return header!.slice(NAME.length + 1).split(';')[0];
+  return (setCookieOf(res) ?? '').slice(NAME.length + 1).split(';')[0];
 }
 
 describe('createDeviceCookies', () => {
   it("pose un cookie HttpOnly, SameSite=Strict, limité à /api/auth, et n'en stocke que l'empreinte", async () => {
     const { app, devices } = setup();
     const res = await request(app).post('/remember/1').set('User-Agent', CHROME_ANDROID);
-    const cookie = [res.headers['set-cookie']].flat()[0];
+    const cookie = setCookieOf(res);
     expect(cookie).toMatch(/HttpOnly/);
     expect(cookie).toMatch(/SameSite=Strict/);
     expect(cookie).toMatch(/Path=\/api\/auth/);
@@ -55,10 +59,10 @@ describe('createDeviceCookies', () => {
   it("n'est Secure qu'en HTTPS, même avec l'option", async () => {
     const { app } = setup(true);
     const res = await request(app).post('/remember/1');
-    expect([res.headers['set-cookie']].flat()[0]).not.toMatch(/Secure/);
+    expect(setCookieOf(res)).not.toMatch(/Secure/);
     app.set('trust proxy', true);
     const https = await request(app).post('/remember/1').set('X-Forwarded-Proto', 'https');
-    expect([https.headers['set-cookie']].flat()[0]).toMatch(/Secure/);
+    expect(setCookieOf(https)).toMatch(/Secure/);
   });
 
   it("reconnaît l'appareil du compte et met à jour sa dernière utilisation", async () => {
@@ -85,9 +89,7 @@ describe('createDeviceCookies', () => {
     devices.revokeAll(1);
     const res = await request(app).get('/trusted/1').set('Cookie', `${NAME}=${token}`);
     expect(res.body).toEqual({ trusted: false, belongs: false });
-    expect([res.headers['set-cookie']].flat()[0]).toMatch(
-      new RegExp(`^${NAME}=;.*Expires=Thu, 01 Jan 1970`),
-    );
+    expect(setCookieOf(res)).toMatch(new RegExp(`^${NAME}=;.*Expires=Thu, 01 Jan 1970`));
   });
 
   it('ne reconnaît rien sans cookie', async () => {
@@ -110,6 +112,6 @@ describe('createDeviceCookies', () => {
   it('efface le cookie à la demande', async () => {
     const { app } = setup();
     const res = await request(app).post('/clear');
-    expect([res.headers['set-cookie']].flat()[0]).toMatch(new RegExp(`^${NAME}=;.*Path=/api/auth`));
+    expect(setCookieOf(res)).toMatch(new RegExp(`^${NAME}=;.*Path=/api/auth`));
   });
 });
