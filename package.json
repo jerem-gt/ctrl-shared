@@ -10,6 +10,7 @@
     "prepare-runtime-deps": "bin/prepare-runtime-deps.mjs"
   },
   "exports": {
+    "./server/auth": "./server/auth/index.ts",
     "./server/*": "./server/*.ts",
     "./package.json": "./package.json"
   },
@@ -27,6 +28,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "peerDependencies": {
+    "bcrypt": ">=6",
     "better-sqlite3": ">=12",
     "express": "^5.0.0",
     "express-session": "^1.18.0",
@@ -35,6 +37,7 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
     "@types/better-sqlite3": "^9.6.0",
     "@types/express": "^5.0.6",
     "@types/express-session": "^1.19.0",
@@ -42,6 +45,7 @@
     "@types/nodemailer": "^8.0.2",
     "@types/supertest": "^7.2.1",
     "@vitest/coverage-v8": "^5.0.5",
+    "bcrypt": "^6.0.0",
     "better-sqlite3": "^13.0.3",
     "express": "^5.3.0",
     "express-session": "^1.19.0",
