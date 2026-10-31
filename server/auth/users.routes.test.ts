@@ -266,6 +266,20 @@ describe('DELETE /api/users/:id', () => {
     expect(fs.readdirSync(dataDir)).toEqual(['admin.txt']);
   });
 
+  it('répond 204 et journalise si le nettoyage des fichiers échoue', async () => {
+    const db = createTestDb();
+    addTestUser(db, 'admin', { isAdmin: true });
+    const bobId = addTestUser(db, 'bob');
+    const { app, log } = createAuthApp({
+      db,
+      onUserDeleted: () => () => Promise.reject(new Error('disque')),
+    });
+    const agent = await loginAgent(app, 'admin');
+    expect((await agent.delete(`/api/users/${bobId}`)).status).toBe(204);
+    expect(db.prepare('SELECT id FROM users WHERE id = ?').get(bobId)).toBeUndefined();
+    expect(log.error).toHaveBeenCalledWith(expect.stringContaining('disque'));
+  });
+
   it('refuse de supprimer son propre compte', async () => {
     const { agent, adminId } = await asAdmin();
     const res = await agent.delete(`/api/users/${adminId}`);

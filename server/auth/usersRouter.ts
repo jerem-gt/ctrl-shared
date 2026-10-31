@@ -120,7 +120,12 @@ export function createUsersRouter<L extends string, S>(ctx: AuthContext<L, S>): 
       return after;
     })();
     sessionStore.destroyAllSessions(id);
-    await cleanup?.();
+    // Le compte est supprimé : un fichier qui résiste est journalisé, la réponse reste un succès.
+    try {
+      await cleanup?.();
+    } catch (err) {
+      ctx.log.error(`[auth] nettoyage des fichiers du compte ${id} échoué : ${String(err)}`);
+    }
     res.status(204).end();
   });
 
