@@ -8,7 +8,7 @@ import type { TotpSetupResponse, TrustedDeviceItem } from './types.js';
 
 /** Activation et désactivation de la 2FA, appareils mémorisés du compte connecté. */
 export function createTotpRouter<L extends string, S>(ctx: AuthContext<L, S>): Router {
-  const { db, repo, usersRepo, devices, deviceCookies, sessionUser, checkCurrentPassword } = ctx;
+  const { db, repo, devices, deviceCookies, sessionUser, checkCurrentPassword } = ctx;
   const { HttpError, appName } = ctx.options;
   const router = Router();
 
@@ -55,10 +55,7 @@ export function createTotpRouter<L extends string, S>(ctx: AuthContext<L, S>): R
       throw new HttpError(409, 'auth.totp_not_enabled');
     }
     await checkCurrentPassword(user, password);
-    db.transaction(() => {
-      usersRepo.disableTotp(user.id);
-      devices.revokeAll(user.id);
-    })();
+    ctx.disableTotp(user.id);
     res.status(204).end();
   });
 

@@ -117,6 +117,16 @@ describe('limitation des tentatives', () => {
     }
   };
 
+  it('refuse un corps de formulaire (seul le JSON est lu : pas de connexion cross-site)', async () => {
+    const { app } = setup();
+    const res = await request(app)
+      .post('/api/auth/login')
+      .type('form')
+      .send(`username=admin&password=${PASSWORD}`);
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('validation.invalid');
+  });
+
   it('bloque la connexion après 10 échecs, même avec le bon mot de passe', async () => {
     const { app } = setup();
     await failAttempts(app, 10);
@@ -370,9 +380,11 @@ describe('PATCH /api/auth/profile', () => {
 
 describe('POST /api/auth/change-password', () => {
   it('change le mot de passe et ferme les autres sessions, pas la courante', async () => {
-    const { app } = setup();
+    const { app, db } = setup();
+    addTestUser(db, 'bob');
     const current = await loginAgent(app, 'admin', PASSWORD);
     const other = await loginAgent(app, 'admin', PASSWORD);
+    const bob = await loginAgent(app, 'bob');
 
     const res = await current
       .post('/api/auth/change-password')
@@ -381,6 +393,8 @@ describe('POST /api/auth/change-password', () => {
     expect(res.status).toBe(204);
     expect((await current.get('/api/auth/me')).status).toBe(200);
     expect((await other.get('/api/auth/me')).status).toBe(401);
+    // Les sessions des autres comptes ne sont pas touchées.
+    expect((await bob.get('/api/auth/me')).status).toBe(200);
     expect((await login(app, { username: 'admin', password: 'new-password' })).status).toBe(200);
   });
 
@@ -395,6 +409,44 @@ describe('POST /api/auth/change-password', () => {
       (await agent.post('/api/auth/change-password').send({ current: PASSWORD, next: 'short' }))
         .status,
     ).toBe(400);
+  });
+});
+
+describe('limitation du mot de passe actuel (partagée par compte)', () => {
+  const wrongChange = (agent: Awaited<ReturnType<typeof loginAgent>>) =>
+    agent.post('/api/auth/change-password').send({ current: 'wrong', next: 'new-password' });
+
+  it('bloque change-password après 10 échecs, même avec le bon mot de passe', async () => {
+    const { app } = setup();
+    const agent = await loginAgent(app, 'admin', PASSWORD);
+    for (let i = 0; i < 10; i += 1) {
+      await wrongChange(agent);
+    }
+    const res = await agent
+      .post('/api/auth/change-password')
+      .send({ current: PASSWORD, next: 'new-password' });
+    expect(res.status).toBe(429);
+    // Même compteur pour le profil.
+    const profile = await agent
+      .patch('/api/auth/profile')
+      .send({ currentPassword: PASSWORD, username: 'renamed' });
+    expect(profile.status).toBe(429);
+  });
+
+  it('remet le compteur à zéro après un mot de passe actuel juste', async () => {
+    const { app } = setup();
+    const agent = await loginAgent(app, 'admin', PASSWORD);
+    for (let i = 0; i < 9; i += 1) {
+      await wrongChange(agent);
+    }
+    const ok = await agent
+      .patch('/api/auth/profile')
+      .send({ currentPassword: PASSWORD, username: 'admin' });
+    expect(ok.status).toBe(200);
+    for (let i = 0; i < 9; i += 1) {
+      await wrongChange(agent);
+    }
+    expect((await wrongChange(agent)).status).toBe(401);
   });
 });
 

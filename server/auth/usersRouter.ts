@@ -1,8 +1,7 @@
 import bcrypt from 'bcrypt';
 import { Router } from 'express';
 
-import { BCRYPT_COST } from './authRepo.js';
-import type { AuthContext } from './context.js';
+import { type AuthContext, BCRYPT_COST } from './context.js';
 import { currentUserId } from './middleware.js';
 import { idParamSchema, updateUserSchema } from './schemas.js';
 
@@ -103,10 +102,7 @@ export function createUsersRouter<L extends string, S>(ctx: AuthContext<L, S>): 
     if (user.totp_enabled !== 1) {
       throw new HttpError(409, 'auth.totp_not_enabled');
     }
-    db.transaction(() => {
-      usersRepo.disableTotp(id);
-      devices.revokeAll(id);
-    })();
+    ctx.disableTotp(id);
     res.status(204).end();
   });
 

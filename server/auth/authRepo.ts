@@ -2,8 +2,6 @@ import type { Database } from 'better-sqlite3';
 
 import type { ResetTokenRow, User } from './types.js';
 
-export const BCRYPT_COST = 12;
-
 export function createAuthRepo(db: Database) {
   const getByUsernameStmt = db.prepare<[string], User>('SELECT * FROM users WHERE username = ?');
   const getByEmailStmt = db.prepare<[string], User>('SELECT * FROM users WHERE email = ?');
@@ -17,6 +15,9 @@ export function createAuthRepo(db: Database) {
   );
   const enableTotpStmt = db.prepare<[string, number, number]>(
     'UPDATE users SET totp_secret = ?, totp_enabled = 1, totp_last_step = ? WHERE id = ?',
+  );
+  const disableTotpStmt = db.prepare<[number]>(
+    'UPDATE users SET totp_secret = NULL, totp_enabled = 0, totp_last_step = NULL WHERE id = ?',
   );
   // Conditionnel : de deux requêtes simultanées avec le même code, une seule passe.
   const consumeTotpStepStmt = db.prepare<[number, number, number]>(
@@ -48,6 +49,7 @@ export function createAuthRepo(db: Database) {
     /** Le pas du code de confirmation est déjà consommé : ce code ne sert pas à se connecter. */
     enableTotp: (userId: number, secret: string, step: number) =>
       enableTotpStmt.run(secret, step, userId),
+    disableTotp: (userId: number) => disableTotpStmt.run(userId),
     /** Vrai si le pas est postérieur au dernier accepté, qu'il remplace ; faux pour un rejeu. */
     consumeTotpStep: (userId: number, step: number): boolean =>
       consumeTotpStepStmt.run(step, userId, step).changes === 1,

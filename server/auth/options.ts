@@ -41,6 +41,18 @@ export interface AuthModuleOptions<L extends string, S> {
   appUrl?: string;
   /** Journal des événements d'authentification (la console par défaut). */
   log?: AuthLogger;
-  /** Limiteur des échecs (tests : horloge maîtrisée). */
+  /**
+   * Limiteur des échecs de connexion, de 2FA, de premier compte et du mot de passe actuel (tests :
+   * horloge maîtrisée). Mot de passe oublié et réinitialisation ont leurs propres limiteurs.
+   */
   limiter?: FailureRateLimiter;
 }
+
+/**
+ * Options d'exécution que chaque projet reçoit de sa configuration (environnement, tests) et
+ * transmet telles quelles au module.
+ */
+export type AuthRuntimeOptions = Pick<
+  AuthModuleOptions<string, unknown>,
+  'secureCookies' | 'appUrl' | 'mailer' | 'setupToken' | 'log'
+>;

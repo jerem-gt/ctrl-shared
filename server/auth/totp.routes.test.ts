@@ -146,6 +146,21 @@ describe('connexion en deux temps', () => {
     expect((await agent.get('/api/items')).status).toBe(200);
   });
 
+  it('change d’identifiant de session après le code (anti-fixation)', async () => {
+    const { app, codeFor } = setup();
+    const agent = request.agent(app);
+    const sid = (res: request.Response) =>
+      setCookies(res)
+        .find((cookie) => cookie.startsWith('testctrl.sid='))
+        ?.split(';')[0];
+    const pending = await agent
+      .post('/api/auth/login')
+      .send({ username: 'alice', password: PASSWORD });
+    const opened = await agent.post('/api/auth/2fa/verify').send({ code: codeFor('alice') });
+    expect(sid(opened)).toBeDefined();
+    expect(sid(opened)).not.toBe(sid(pending));
+  });
+
   it('refuse un code faux', async () => {
     const { app, secrets } = setup();
     const agent = request.agent(app);
@@ -300,6 +315,17 @@ describe('limitation des codes', () => {
     const res = await verifyFrom(ctx, clientIp(99));
     expect(res.status).toBe(429);
     expect(res.body.error.code).toBe('auth.too_many_attempts');
+  });
+
+  it('les codes faux épuisent aussi le quota de connexion de l’adresse', async () => {
+    const ctx = setup();
+    ctx.app.set('trust proxy', true);
+    await failCodes(ctx.app, 10, () => clientIp(1));
+    const res = await request(ctx.app)
+      .post('/api/auth/login')
+      .set('X-Forwarded-For', clientIp(1))
+      .send({ username: 'bob', password: PASSWORD });
+    expect(res.status).toBe(429);
   });
 
   it('remet les compteurs à zéro après un bon code', async () => {

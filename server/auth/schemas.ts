@@ -72,7 +72,6 @@ export const updateUserSchema = z
 export function createLangSchemas<L extends string>(languages: readonly [L, ...L[]]) {
   const langSchema = z.enum(languages).default(languages[0]);
   return {
-    langSchema,
     setupSchema: z.object({
       token: z.string().min(1),
       username: usernameSchema,

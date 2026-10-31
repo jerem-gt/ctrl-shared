@@ -5,8 +5,7 @@ import { Router } from 'express';
 
 import { sha256Hex } from '../crypto.js';
 import { FailureRateLimiter } from '../rateLimit.js';
-import { BCRYPT_COST } from './authRepo.js';
-import type { AuthContext } from './context.js';
+import { type AuthContext, BCRYPT_COST, clientKey } from './context.js';
 import { emailSchema, resetPasswordSchema } from './schemas.js';
 import type { User } from './types.js';
 
@@ -15,7 +14,7 @@ const FORGOT_MAX_REQUESTS = 5;
 
 /** Mot de passe oublié : lien à usage unique par e-mail (ou dans les logs, sans SMTP). */
 export function createPasswordRouter<L extends string, S>(ctx: AuthContext<L, S>): Router {
-  const { db, repo, devices, sessionStore, mailer, log, schemas } = ctx;
+  const { db, repo, devices, sessionStore, mailer, log, schemas, assertAllowed } = ctx;
   const { HttpError, appUrl, mailTexts } = ctx.options;
   const router = Router();
   const forgotLimiter = new FailureRateLimiter(db, FORGOT_MAX_REQUESTS);
@@ -52,10 +51,8 @@ export function createPasswordRouter<L extends string, S>(ctx: AuthContext<L, S>
 
   /** Réponse identique que le compte existe ou non : ne révèle ni les noms ni les e-mails. */
   router.post('/password/forgot', (req, res) => {
-    const key = `forgot:${req.ip ?? 'unknown'}`;
-    if (!forgotLimiter.isAllowed(key)) {
-      throw new HttpError(429, 'auth.too_many_attempts');
-    }
+    const key = clientKey(req, 'forgot:');
+    assertAllowed(forgotLimiter, key);
     // Chaque requête compte, qu'elle aboutisse ou non.
     forgotLimiter.recordFailure(key);
 
@@ -74,10 +71,8 @@ export function createPasswordRouter<L extends string, S>(ctx: AuthContext<L, S>
   });
 
   router.post('/password/reset', async (req, res) => {
-    const key = `reset:${req.ip ?? 'unknown'}`;
-    if (!resetLimiter.isAllowed(key)) {
-      throw new HttpError(429, 'auth.too_many_attempts');
-    }
+    const key = clientKey(req, 'reset:');
+    assertAllowed(resetLimiter, key);
     const data = resetPasswordSchema.parse(req.body);
 
     const tokenHash = sha256Hex(data.token);

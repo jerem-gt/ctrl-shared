@@ -2,8 +2,7 @@ import bcrypt from 'bcrypt';
 import { type NextFunction, type Request, type Response, Router } from 'express';
 
 import { matchTotpStep } from '../totp.js';
-import { BCRYPT_COST } from './authRepo.js';
-import type { AuthContext } from './context.js';
+import { type AuthContext, BCRYPT_COST, clientKey } from './context.js';
 import { createMailRouter } from './mailRouter.js';
 import { createPasswordRouter } from './passwordRouter.js';
 import { changePasswordSchema, loginSchema, profileSchema, verifyTotpSchema } from './schemas.js';
@@ -13,7 +12,7 @@ import type { LoginResponse, SessionResponse, SetupStatusResponse, User } from '
 /** Délai pour donner le code TOTP après le mot de passe. */
 const TOTP_PENDING_TTL_MS = 5 * 60 * 1000;
 
-export function sessionResponse(user: User): SessionResponse {
+function sessionResponse(user: User): SessionResponse {
   return {
     id: user.id,
     username: user.username,
@@ -23,29 +22,24 @@ export function sessionResponse(user: User): SessionResponse {
   };
 }
 
-/** Régénère la session (anti-fixation) puis y pose l'utilisateur authentifié. */
-function startSession(req: Request, res: Response, next: NextFunction, user: User): void {
-  req.session.regenerate((regenerateError) => {
-    if (regenerateError) {
-      next(regenerateError);
-      return;
-    }
-    req.session.userId = user.id;
-    req.session.save((saveError) => {
-      if (saveError) {
-        next(saveError);
-        return;
-      }
-      res.json(sessionResponse(user));
-    });
-  });
-}
-
 /** Monté sur `/api/auth` : premier compte, connexion (2FA comprise), profil, mot de passe. */
 export function createAuthRouter<L extends string, S>(ctx: AuthContext<L, S>): Router {
   const { db, repo, usersRepo, devices, deviceCookies, limiter, setupToken, log, schemas } = ctx;
+  const { assertAllowed, regenerateSession } = ctx;
   const { HttpError, appName, sessionCookie, onUserCreated } = ctx.options;
   const router = Router();
+
+  /** Ouvre la session du compte authentifié et répond avec lui. */
+  const startSession = (req: Request, res: Response, next: NextFunction, user: User) => {
+    regenerateSession(
+      req,
+      next,
+      () => {
+        req.session.userId = user.id;
+      },
+      () => res.json(sessionResponse(user)),
+    );
+  };
 
   // Hash factice, du même coût que les vrais, comparé quand l'identifiant est inconnu : égalise
   // le temps de réponse pour ne pas révéler si le compte existe. Calculé à la première utilisation.
@@ -62,10 +56,8 @@ export function createAuthRouter<L extends string, S>(ctx: AuthContext<L, S>): R
     if (repo.countUsers() > 0) {
       throw new HttpError(409, 'auth.setup_done');
     }
-    const key = `setup:${req.ip ?? 'unknown'}`;
-    if (!limiter.isAllowed(key)) {
-      throw new HttpError(429, 'auth.too_many_attempts');
-    }
+    const key = clientKey(req, 'setup:');
+    assertAllowed(limiter, key);
     const data = schemas.setupSchema.parse(req.body);
     if (!setupToken.verify(data.token)) {
       limiter.recordFailure(key);
@@ -92,10 +84,8 @@ export function createAuthRouter<L extends string, S>(ctx: AuthContext<L, S>): R
   });
 
   router.post('/login', async (req, res, next) => {
-    const key = req.ip ?? 'unknown';
-    if (!limiter.isAllowed(key)) {
-      throw new HttpError(429, 'auth.too_many_attempts');
-    }
+    const key = clientKey(req);
+    assertAllowed(limiter, key);
     const { username, password } = loginSchema.parse(req.body);
     const user = repo.getByUsername(username);
     const passwordOk = await bcrypt.compare(password, user?.password_hash ?? getDummyHash());
@@ -112,22 +102,16 @@ export function createAuthRouter<L extends string, S>(ctx: AuthContext<L, S>): R
       }
       // Mot de passe vérifié : une session neuve attend le code (le limiteur se remet à zéro
       // après lui). Régénérée, elle ne garde rien d'une connexion précédente (autre compte).
-      req.session.regenerate((regenerateError) => {
-        if (regenerateError) {
-          next(regenerateError);
-          return;
-        }
-        req.session.pendingUserId = user.id;
-        req.session.pendingTotpAt = Date.now();
-        req.session.save((saveError) => {
-          if (saveError) {
-            next(saveError);
-            return;
-          }
-          const body: LoginResponse = { totpRequired: true };
-          res.json(body);
-        });
-      });
+      const body: LoginResponse = { totpRequired: true };
+      regenerateSession(
+        req,
+        next,
+        () => {
+          req.session.pendingUserId = user.id;
+          req.session.pendingTotpAt = Date.now();
+        },
+        () => res.json(body),
+      );
       return;
     }
     limiter.reset(key);
@@ -136,10 +120,8 @@ export function createAuthRouter<L extends string, S>(ctx: AuthContext<L, S>): R
 
   /** Second temps de la connexion : échecs limités par IP et par compte, code à usage unique. */
   router.post('/2fa/verify', (req, res, next) => {
-    const key = req.ip ?? 'unknown';
-    if (!limiter.isAllowed(key)) {
-      throw new HttpError(429, 'auth.too_many_attempts');
-    }
+    const key = clientKey(req);
+    assertAllowed(limiter, key);
     const { code, remember } = verifyTotpSchema.parse(req.body);
     const { pendingUserId, pendingTotpAt } = req.session;
     const expired =
@@ -151,9 +133,7 @@ export function createAuthRouter<L extends string, S>(ctx: AuthContext<L, S>): R
       throw new HttpError(401, 'auth.totp_token_invalid');
     }
     const accountKey = `totp:${user.id}`;
-    if (!limiter.isAllowed(accountKey)) {
-      throw new HttpError(429, 'auth.too_many_attempts');
-    }
+    assertAllowed(limiter, accountKey);
     const step = matchTotpStep(user.totp_secret, code);
     if (step === null || !repo.consumeTotpStep(user.id, step)) {
       limiter.recordFailure(key);

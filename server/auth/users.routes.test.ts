@@ -114,6 +114,17 @@ describe('POST /api/users', () => {
 });
 
 describe('PATCH /api/users/:id', () => {
+  it.each([
+    ['e-mail pris (casse ignorée)', { email: 'ADMIN@example.com' }, 409, 'user.email_taken'],
+    ['e-mail invalide', { email: 'pas-un-email' }, 400, 'validation.invalid'],
+    ['rôle non booléen', { isAdmin: 'yes' }, 400, 'validation.invalid'],
+  ])('refuse : %s', async (_title, body, status, code) => {
+    const { agent, bobId } = await asAdmin();
+    const res = await agent.patch(`/api/users/${bobId}`).send(body);
+    expect(res.status).toBe(status);
+    expect(res.body.error.code).toBe(code);
+  });
+
   it('modifie le nom et l’e-mail, puis efface l’e-mail avec null', async () => {
     const { agent, bobId } = await asAdmin();
     const res = await agent
