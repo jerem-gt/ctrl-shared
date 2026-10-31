@@ -58,12 +58,8 @@ Les checks GitHub s'appellent `app / 🧪 CI & Tests`, etc. : c'est ce nom qu'at
 
 ## Publier une version
 
-Le code `server/` est vérifié ici (`.github/workflows/check.yml` : `npm run typecheck`, `npm run test:coverage`, Prettier, puis SonarCloud sur les PR et `main`). Le reste se teste depuis un projet en pointant le workflow **et** la devDependency sur la branche (`@ma-branche`, `#ma-branche`), puis :
+Le code `server/` est vérifié ici (`.github/workflows/check.yml` : `npm run typecheck`, `npm run test:coverage`, Prettier, puis SonarCloud sur les PR et `main`). Le reste se teste depuis un projet en pointant le workflow **et** la devDependency sur la branche (`@ma-branche`, `#ma-branche`), avant de fusionner la PR.
 
-```sh
-git tag v1.1.0 && git push origin v1.1.0
-```
-
-Renovate propose ensuite la montée dans chaque projet (référence du workflow et devDependency, groupées dans une seule PR, toujours sur le même tag).
+La fusion sur `main` publie le tag : semantic-release (`.releaserc.json`) lit les commits depuis le dernier tag, `feat` donne une mineure, `fix` et `chore(deps)` (montées des actions par Renovate) un patch, `BREAKING CHANGE` une majeure ; `docs`, `ci`, `build`… n'en publient pas. Renovate propose ensuite la montée dans chaque projet (référence du workflow et devDependency, groupées dans une seule PR, toujours sur le même tag).
 
 Seuls le workflow, `bin/`, `docker/` et `server/` demandent un tag. Le preset `default.json` est lu par Renovate sur `main`, sans tag : une modification s'applique aux deux projets dès qu'elle est poussée.
