@@ -11,6 +11,9 @@
   "rangeStrategy": "bump",
   "timezone": "Europe/Paris",
   "labels": ["dependencies"],
+  "constraints": {
+    "npm": "<12"
+  },
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["on monday"],
@@ -29,7 +32,8 @@
       "groupName": "node",
       "addLabels": ["node"],
       "prBodyNotes": [
-        "Si majeure : aligner aussi `@types/node` dans chaque projet et la règle `allowedVersions` de ce preset."
+        "Si majeure : aligner aussi `@types/node` dans chaque projet et la règle `allowedVersions` de ce preset.",
+        "Node 27 embarque npm 12 : relever alors `constraints.npm` de ce preset (npm de Renovate figé en 11 comme celui de Node 26) et vérifier une maintenance du lockfile (npm 12 refuse par défaut les paquets Git et les archives distantes, `allow-git` / `allow-remote`)."
       ]
     },
     {
