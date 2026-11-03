@@ -59,5 +59,9 @@
   },
   "engines": {
     "node": ">=26.13.0"
+  },
+  "allowScripts": {
+    "bcrypt": false,
+    "better-sqlite3": false
   }
 }
