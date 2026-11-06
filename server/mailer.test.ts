@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import nodemailer from 'nodemailer';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createMailer, readSmtpConfig } from './mailer.js';
 
@@ -53,6 +54,10 @@ describe('readSmtpConfig', () => {
 });
 
 describe('createMailer', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('n’est pas configuré sans variables SMTP et refuse d’envoyer', async () => {
     const mailer = createMailer({});
     expect(mailer.isConfigured()).toBe(false);
@@ -61,5 +66,32 @@ describe('createMailer', () => {
 
   it('est configuré avec SMTP_HOST et un expéditeur', () => {
     expect(createMailer({ SMTP_HOST: 'smtp.test', SMTP_FROM: 'a@b.fr' }).isConfigured()).toBe(true);
+  });
+
+  it('transmet le HTML et les pièces jointes au transport', async () => {
+    const sendMail = vi.fn().mockResolvedValue({});
+    vi.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail } as unknown as ReturnType<
+      typeof nodemailer.createTransport
+    >);
+    const attachments = [
+      { filename: 'logo.png', content: Buffer.from('x'), contentType: 'image/png', cid: 'logo' },
+    ];
+
+    await createMailer({ SMTP_HOST: 'smtp.test', SMTP_FROM: 'a@b.fr' }).send({
+      to: 'c@d.fr',
+      subject: 's',
+      text: 't',
+      html: '<p>h</p>',
+      attachments,
+    });
+
+    expect(sendMail).toHaveBeenCalledWith({
+      from: 'a@b.fr',
+      to: 'c@d.fr',
+      subject: 's',
+      text: 't',
+      html: '<p>h</p>',
+      attachments,
+    });
   });
 });

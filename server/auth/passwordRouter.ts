@@ -35,12 +35,8 @@ export function createPasswordRouter<L extends string, S>(ctx: AuthContext<L, S>
     const path = `/reset-password?token=${token}`;
     const fallbackMessage = `[auth] réinitialisation du mot de passe de « ${user.username} » : ouvrir ${appUrl ?? ''}${path}`;
     if (mailer.isConfigured() && user.email && appUrl) {
-      const { subject, text } = mailTexts.reset(
-        lang,
-        `${appUrl}${path}`,
-        RESET_TOKEN_TTL_MS / 60_000,
-      );
-      mailer.send({ to: user.email, subject, text }).catch((err: unknown) => {
+      const content = mailTexts.reset(lang, `${appUrl}${path}`, RESET_TOKEN_TTL_MS / 60_000);
+      mailer.send({ to: user.email, ...content }).catch((err: unknown) => {
         log.error(`[auth] envoi de l'e-mail de réinitialisation échoué : ${String(err)}`);
         log.warn(fallbackMessage);
       });
