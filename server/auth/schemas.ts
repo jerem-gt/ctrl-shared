@@ -67,7 +67,7 @@ export const updateUserSchema = z
 
 /**
  * Schémas qui portent la langue (`lang`, une des langues de l'appli, la première par défaut) :
- * données initiales d'un compte créé, langue de l'e-mail du mot de passe oublié.
+ * données initiales d'un compte créé, langue des e-mails (mot de passe oublié, test).
  */
 export function createLangSchemas<L extends string>(languages: readonly [L, ...L[]]) {
   const langSchema = z.enum(languages).default(languages[0]);
@@ -82,6 +82,7 @@ export function createLangSchemas<L extends string>(languages: readonly [L, ...L
       identifier: z.string().trim().min(1).max(254),
       lang: langSchema,
     }),
+    testEmailSchema: z.object({ lang: langSchema }),
     createUserSchema: z.object({
       username: usernameSchema,
       password: newPasswordSchema,

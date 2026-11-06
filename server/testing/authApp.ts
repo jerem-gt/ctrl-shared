@@ -164,7 +164,7 @@ export function createAuthApp(
         subject: `reset ${lang}`,
         text: `${lang} ${link} ${minutes}`,
       }),
-      test: () => ({ subject: 'TestCtrl', text: 'test' }),
+      test: (lang) => ({ subject: `test ${lang}`, text: 'test' }),
     },
     userStats: (userId) => ({
       itemCount: (

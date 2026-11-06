@@ -214,7 +214,20 @@ describe('POST /api/auth/test-email', () => {
     const { app, mailer } = setup();
     const agent = await loginAgent(app, 'alice');
     expect((await agent.post('/api/auth/test-email')).status).toBe(204);
-    expect(mailer.sent).toEqual([expect.objectContaining({ to: 'alice@example.com' })]);
+    expect(mailer.sent).toEqual([
+      expect.objectContaining({ to: 'alice@example.com', subject: 'test fr' }),
+    ]);
+  });
+
+  it('écrit l’e-mail dans la langue demandée, refuse une langue inconnue', async () => {
+    const { app, mailer } = setup();
+    const agent = await loginAgent(app, 'alice');
+    expect((await agent.post('/api/auth/test-email').send({ lang: 'en' })).status).toBe(204);
+    expect(mailer.sent[0].subject).toBe('test en');
+
+    const res = await agent.post('/api/auth/test-email').send({ lang: 'de' });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('validation.invalid');
   });
 
   it('retourne 400 sans e-mail sur le compte', async () => {

@@ -1,6 +1,7 @@
 import {
   body,
   errorResponse,
+  optionalBody,
   pId,
   r200,
   r201,
@@ -39,9 +40,8 @@ export interface AuthOpenApiOptions<L extends string> {
  * route des routeurs.
  */
 export function createAuthOpenApiPaths<L extends string>(options: AuthOpenApiOptions<L>) {
-  const { setupSchema, forgotPasswordSchema, createUserSchema } = createLangSchemas(
-    options.languages,
-  );
+  const { setupSchema, forgotPasswordSchema, testEmailSchema, createUserSchema } =
+    createLangSchemas(options.languages);
   const auth = [options.tags.auth];
   const users = [options.tags.users];
   return {
@@ -187,11 +187,12 @@ export function createAuthOpenApiPaths<L extends string>(options: AuthOpenApiOpt
     '/api/auth/test-email': {
       post: {
         tags: auth,
-        summary: "Envoyer un e-mail de test à l'admin connecté",
+        summary: "Envoyer un e-mail de test à l'admin connecté (dans la langue `lang`)",
         security: sessionAuth,
+        requestBody: optionalBody(testEmailSchema),
         responses: {
           ...r204,
-          400: errorResponse('No email on the account'),
+          400: errorResponse('No email on the account or invalid language'),
           ...r401,
           ...r403,
           502: errorResponse('Sending failed'),
