@@ -9,8 +9,8 @@ export type MailContent = Omit<MailMessage, 'to'>;
 export interface MailTexts<L extends string> {
   /** Lien de réinitialisation du mot de passe, valable `minutes`. */
   reset: (lang: L, link: string, minutes: number) => MailContent;
-  /** E-mail de test (la langue du compte n'est pas connue). */
-  test: () => MailContent;
+  /** E-mail de test, dans la langue de l'interface de l'admin. */
+  test: (lang: L) => MailContent;
 }
 
 /** Langues des e-mails fournis par `createMailTexts`. */
@@ -165,6 +165,7 @@ const TEXTS = {
     fallback: 'Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :',
     resetFooter:
       "Si vous n'êtes pas à l'origine de cette demande, ignorez ce message : votre mot de passe reste inchangé.",
+    testSubject: (name: string) => `${name} : e-mail de test`,
     testTitle: 'E-mail de test',
     testBody: (name: string) => `L'envoi d'e-mails depuis ${name} fonctionne.`,
     footer: (name: string) => `Message envoyé automatiquement par ${name}.`,
@@ -180,6 +181,7 @@ const TEXTS = {
     fallback: "If the button doesn't work, copy this link into your browser:",
     resetFooter:
       'If you did not request this, you can ignore this message: your password stays unchanged.',
+    testSubject: (name: string) => `${name}: test email`,
     testTitle: 'Test email',
     testBody: (name: string) => `Sending emails from ${name} works.`,
     footer: (name: string) => `Sent automatically by ${name}.`,
@@ -204,7 +206,7 @@ function readLogo(logoPath: string | undefined): MailAttachment | undefined {
 }
 
 /**
- * E-mails du module d'auth (mot de passe oublié, test), en français et en anglais, en HTML avec
+ * E-mails du module d'auth (mot de passe oublié, test), en français ou en anglais, en HTML avec
  * leur version texte. Le nom affiché suit `APP_INSTANCE` (`env`), le logo est lu une fois.
  */
 export function createMailTexts(
@@ -235,13 +237,14 @@ export function createMailTexts(
         footer: t.resetFooter,
       });
     },
-    // Langue du compte inconnue : bilingue.
-    test: () =>
-      build(`${name} : ${TEXTS.fr.testTitle} / ${TEXTS.en.testTitle}`, {
-        lang: 'fr',
-        title: `${TEXTS.fr.testTitle} · ${TEXTS.en.testTitle}`,
-        paragraphs: [TEXTS.fr.testBody(name), TEXTS.en.testBody(name)],
-        footer: `${TEXTS.fr.footer(name)} ${TEXTS.en.footer(name)}`,
-      }),
+    test: (lang) => {
+      const t = TEXTS[lang];
+      return build(t.testSubject(name), {
+        lang,
+        title: t.testTitle,
+        paragraphs: [t.testBody(name)],
+        footer: t.footer(name),
+      });
+    },
   };
 }

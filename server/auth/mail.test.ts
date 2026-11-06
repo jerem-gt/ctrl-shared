@@ -63,31 +63,38 @@ ${LINK}`);
   });
 
   it('se passe du logo s’il est illisible', () => {
-    const mail = createMailTexts(
-      { ...BRAND, logoPath: path.join(tmpDir, 'absent.png') },
-      {},
-    ).test();
+    const mail = createMailTexts({ ...BRAND, logoPath: path.join(tmpDir, 'absent.png') }, {}).test(
+      'fr',
+    );
 
     expect(mail.attachments).toBeUndefined();
     expect(mail.html).not.toContain('cid:');
   });
 
   it('échappe le HTML des textes', () => {
-    const mail = createMailTexts({ ...BRAND, appName: '<b>App</b>' }, {}).test();
+    const mail = createMailTexts({ ...BRAND, appName: '<b>App</b>' }, {}).test('fr');
 
     expect(mail.html).toContain('&lt;b&gt;App&lt;/b&gt;');
     expect(mail.html).not.toContain('<b>App</b>');
   });
 
-  it('e-mail de test bilingue, sans bouton', () => {
-    const mail = createMailTexts(BRAND, { APP_INSTANCE: 'Dev' }).test();
+  it.each([
+    [
+      'fr',
+      'TestCtrl Dev : e-mail de test',
+      "L'envoi d'e-mails depuis TestCtrl Dev fonctionne.\n\nMessage envoyé automatiquement par TestCtrl Dev.",
+    ],
+    [
+      'en',
+      'TestCtrl Dev: test email',
+      'Sending emails from TestCtrl Dev works.\n\nSent automatically by TestCtrl Dev.',
+    ],
+  ] as const)('e-mail de test en %s, sans bouton', (lang, subject, text) => {
+    const mail = createMailTexts(BRAND, { APP_INSTANCE: 'Dev' }).test(lang);
 
-    expect(mail.subject).toBe('TestCtrl Dev : E-mail de test / Test email');
-    expect(mail.text).toBe(
-      "L'envoi d'e-mails depuis TestCtrl Dev fonctionne.\n\n" +
-        'Sending emails from TestCtrl Dev works.\n\n' +
-        'Message envoyé automatiquement par TestCtrl Dev. Sent automatically by TestCtrl Dev.',
-    );
+    expect(mail.subject).toBe(subject);
+    expect(mail.text).toBe(text);
+    expect(mail.html).toContain(`<html lang="${lang}">`);
     expect(mail.html).not.toContain('<a href');
   });
 });
