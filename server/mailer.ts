@@ -1,9 +1,20 @@
 import nodemailer from 'nodemailer';
 
+/** Pièce jointe ; avec `cid`, image intégrée au HTML (`<img src="cid:…">`). */
+export interface MailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType: string;
+  cid?: string;
+}
+
 export interface MailMessage {
   to: string;
   subject: string;
+  /** Version texte : seule lue par les clients sans HTML. */
   text: string;
+  html?: string;
+  attachments?: MailAttachment[];
 }
 
 export interface Mailer {
@@ -48,8 +59,8 @@ export function createMailer(env: NodeJS.ProcessEnv = process.env): Mailer {
   });
   return {
     isConfigured: () => true,
-    send: async ({ to, subject, text }) => {
-      await transport.sendMail({ from: config.from, to, subject, text });
+    send: async ({ to, subject, text, html, attachments }) => {
+      await transport.sendMail({ from: config.from, to, subject, text, html, attachments });
     },
   };
 }

@@ -4,7 +4,8 @@ import type { Mailer } from '../mailer.js';
 import type { FailureRateLimiter } from '../rateLimit.js';
 import type { SetupToken } from '../setup.js';
 import type { AuthHttpErrorClass } from './errors.js';
-import type { AuthLogger, MailTexts } from './types.js';
+import type { MailTexts } from './mail.js';
+import type { AuthLogger } from './types.js';
 import type { UserStatsProvider } from './usersRepo.js';
 
 /**

@@ -76,17 +76,3 @@ export interface UserItem<S> {
   createdAt: string;
   stats: S;
 }
-
-/** Message d'un e-mail. */
-export interface MailContent {
-  subject: string;
-  text: string;
-}
-
-/** Textes des e-mails, dans la langue demandée (`L` : langues de l'appli). */
-export interface MailTexts<L extends string> {
-  /** Lien de réinitialisation du mot de passe, valable `minutes`. */
-  reset: (lang: L, link: string, minutes: number) => MailContent;
-  /** E-mail de test (la langue du compte n'est pas connue). */
-  test: () => MailContent;
-}
