@@ -3,12 +3,12 @@ import { Router } from 'express';
 import { matchTotpStep, newTotpSecret } from '../totp.js';
 import type { AuthContext } from './context.js';
 import { currentUserId } from './middleware.js';
-import { disableTotpSchema, enableTotpSchema, idParamSchema } from './schemas.js';
+import { disableTotpSchema, enableTotpSchema } from './schemas.js';
 import type { TotpSetupResponse, TrustedDeviceItem } from './types.js';
 
 /** Activation et désactivation de la 2FA, appareils mémorisés du compte connecté. */
 export function createTotpRouter<L extends string, S>(ctx: AuthContext<L, S>): Router {
-  const { db, repo, devices, deviceCookies, sessionUser, checkCurrentPassword } = ctx;
+  const { db, repo, devices, deviceCookies, sessionUser, checkCurrentPassword, parseIdParam } = ctx;
   const { HttpError, appName } = ctx.options;
   const router = Router();
 
@@ -75,7 +75,7 @@ export function createTotpRouter<L extends string, S>(ctx: AuthContext<L, S>): R
   });
 
   router.delete('/devices/:id', (req, res) => {
-    const id = idParamSchema.parse(req.params.id);
+    const id = parseIdParam(req);
     const device = devices.get(id, currentUserId(res));
     if (!device) {
       throw new HttpError(404, 'auth.device_not_found');

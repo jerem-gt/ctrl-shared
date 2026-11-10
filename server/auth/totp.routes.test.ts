@@ -731,6 +731,14 @@ describe('routes /api/auth/devices', () => {
     expect(deviceCount('bob')).toBe(1);
   });
 
+  it('répond 400 common.invalid_param pour un id mal formé', async () => {
+    const { sessionAgent } = setup();
+    const session = await sessionAgent('alice');
+    const res = await session.del('/api/auth/devices/1e2');
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('common.invalid_param');
+  });
+
   it('oublie tous les appareils du compte, efface le cookie et garde la session', async () => {
     const { trustDevice, sessionAgent, deviceCount } = setup();
     const cookie = await trustDevice('alice');

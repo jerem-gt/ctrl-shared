@@ -125,6 +125,13 @@ describe('PATCH /api/users/:id', () => {
     expect(res.body.error.code).toBe(code);
   });
 
+  it.each(['abc', '0', '12abc'])('refuse l’id « %s » : 400 common.invalid_param', async (id) => {
+    const { agent } = await asAdmin();
+    const res = await agent.patch(`/api/users/${id}`).send({ username: 'x' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatchObject({ code: 'common.invalid_param', params: { param: 'id' } });
+  });
+
   it('modifie le nom et l’e-mail, puis efface l’e-mail avec null', async () => {
     const { agent, bobId } = await asAdmin();
     const res = await agent

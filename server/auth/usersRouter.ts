@@ -3,11 +3,12 @@ import { Router } from 'express';
 
 import { type AuthContext, BCRYPT_COST } from './context.js';
 import { currentUserId } from './middleware.js';
-import { idParamSchema, updateUserSchema } from './schemas.js';
+import { updateUserSchema } from './schemas.js';
 
 /** Monté sur `/api/users`, réservé aux admins : gestion des comptes. */
 export function createUsersRouter<L extends string, S>(ctx: AuthContext<L, S>): Router {
-  const { db, repo, usersRepo, devices, sessionStore, schemas, assertIdentityFree } = ctx;
+  const { db, repo, usersRepo, devices, sessionStore, schemas, assertIdentityFree, parseIdParam } =
+    ctx;
   const { HttpError, onUserCreated, onUserDeleted } = ctx.options;
   const router = Router();
 
@@ -51,7 +52,7 @@ export function createUsersRouter<L extends string, S>(ctx: AuthContext<L, S>): 
   });
 
   router.patch('/:id', async (req, res) => {
-    const id = idParamSchema.parse(req.params.id);
+    const id = parseIdParam(req);
     assertExists(id);
     const { username, password, email, isAdmin } = updateUserSchema.parse(req.body);
     const assertAllowed = () => {
@@ -94,7 +95,7 @@ export function createUsersRouter<L extends string, S>(ctx: AuthContext<L, S>): 
 
   /** Téléphone perdu : l'admin désactive la 2FA du compte, ses appareils mémorisés tombent. */
   router.delete('/:id/2fa', (req, res) => {
-    const id = idParamSchema.parse(req.params.id);
+    const id = parseIdParam(req);
     const user = repo.getById(id);
     if (!user) {
       throw new HttpError(404, 'user.not_found');
@@ -108,7 +109,7 @@ export function createUsersRouter<L extends string, S>(ctx: AuthContext<L, S>): 
 
   /** Supprime le compte et ses données ; le nettoyage des fichiers suit la transaction. */
   router.delete('/:id', async (req, res) => {
-    const id = idParamSchema.parse(req.params.id);
+    const id = parseIdParam(req);
     assertExists(id);
     if (id === currentUserId(res)) {
       throw new HttpError(409, 'user.cannot_delete_self');

@@ -4,6 +4,7 @@ import type { NextFunction, Request, RequestHandler, Response } from 'express';
 
 import { createDeviceCookies, type DeviceCookies } from '../deviceCookie.js';
 import { createMailer, type Mailer } from '../mailer.js';
+import { createIdParamParser } from '../params.js';
 import { FailureRateLimiter } from '../rateLimit.js';
 import type { SQLiteSessionStore } from '../session-store.js';
 import { SetupToken } from '../setup.js';
@@ -37,6 +38,8 @@ export interface AuthContext<L extends string, S> {
   schemas: LangSchemas<L>;
   requireAuth: RequestHandler;
   requireAdmin: RequestHandler;
+  /** Paramètre de route entier strictement positif, sinon 400 `common.invalid_param`. */
+  parseIdParam: (req: Request, name?: string) => number;
   /** Lève 429 si la clé a épuisé ses essais auprès de ce limiteur. */
   assertAllowed: (limiter: FailureRateLimiter, key: string) => void;
   /**
@@ -98,6 +101,7 @@ export function createAuthContext<L extends string, S>(
     schemas: createLangSchemas(options.languages),
     requireAuth,
     requireAdmin: createRequireAdmin(db),
+    parseIdParam: createIdParamParser(HttpError),
     assertAllowed,
 
     regenerateSession: (req, next, fill, respond) => {
