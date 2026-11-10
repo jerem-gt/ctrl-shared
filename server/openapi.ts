@@ -55,9 +55,9 @@ export function queryParams(zod: ZodType) {
   }));
 }
 
-/** Paramètre de chemin entier (`{id}`, `{accountId}`…). */
+/** Paramètre de chemin entier strictement positif (`{id}`, `{accountId}`…, lu par `parseIdParam`). */
 export function pathInt(name: string) {
-  return { name, in: 'path', required: true, schema: { type: 'integer' } };
+  return { name, in: 'path', required: true, schema: { type: 'integer', minimum: 1 } };
 }
 
 export const pId = [pathInt('id')];

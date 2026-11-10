@@ -1,3 +1,5 @@
+import type { ErrorParams } from '../errors.js';
+
 /** Codes d'erreur du module d'auth, avec leur message FR de repli : fusionnés dans le registre du projet. */
 export const AUTH_ERROR_MESSAGES = {
   'user.not_found': 'Utilisateur introuvable',
@@ -22,12 +24,19 @@ export const AUTH_ERROR_MESSAGES = {
   'auth.device_not_found': 'Appareil mémorisé introuvable',
 } as const;
 
-/** Codes levés par le module : les siens et deux codes de base (`common.*`). */
+/** Codes levés par le module : les siens et trois codes de base (`common.*`). */
 export type AuthErrorCode =
-  keyof typeof AUTH_ERROR_MESSAGES | 'common.unauthorized' | 'common.forbidden';
+  | keyof typeof AUTH_ERROR_MESSAGES
+  | 'common.unauthorized'
+  | 'common.forbidden'
+  | 'common.invalid_param';
 
 /**
  * Classe `HttpError` du projet (`createHttpErrors`) : le module lève ses erreurs avec, le
  * gestionnaire global du projet les traduit. Elle accepte au moins les codes du module.
  */
-export type AuthHttpErrorClass = new (status: number, code: AuthErrorCode) => Error;
+export type AuthHttpErrorClass = new (
+  status: number,
+  code: AuthErrorCode,
+  params?: ErrorParams,
+) => Error;
