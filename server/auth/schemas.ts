@@ -4,7 +4,7 @@ import { z } from 'zod';
 export const emailSchema = z.string().trim().toLowerCase().pipe(z.email().max(254));
 export const usernameSchema = z.string().trim().min(1).max(64);
 export const newPasswordSchema = z.string().min(8).max(200);
-/** Identifiant numérique en paramètre de route (compte, appareil). */
+
 export const loginSchema = z.object({
   username: z.string().min(1).max(200),
   password: z.string().min(1).max(200),
