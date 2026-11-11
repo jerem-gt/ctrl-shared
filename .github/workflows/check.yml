@@ -21,7 +21,7 @@ jobs:
   check:
     name: 🧪 Types, tests & format
     runs-on: ubuntu-latest
-    container: node:26.13.0-alpine
+    container: node:26.13.1-alpine
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

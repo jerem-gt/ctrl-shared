@@ -19,7 +19,7 @@ jobs:
   ci:
     name: 🧪 CI & Tests
     runs-on: ubuntu-latest
-    container: node:26.13.0-alpine
+    container: node:26.13.1-alpine
     timeout-minutes: 15
     steps:
       - name: Install system deps
